@@ -65,7 +65,7 @@
     padding: 12px 16px; display: flex; align-items: center; justify-content: space-between;
   }
   .logo { display: flex; align-items: center; gap: 10px; }
-  .logo-icon { width: 42px; height: 42px; flex-shrink: 0; }
+  .logo-icon { width: 42px; height: 42px; flex-shrink: 0; border-radius: 10px; }
   .logo-text { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500; }
   .logo-sub { font-size: 9px; color: var(--mel-claro); letter-spacing: 2px; text-transform: uppercase; display: block; margin-top: -3px; }
   .count-badge { background: rgba(107,171,94,0.15); border: 1px solid rgba(107,171,94,0.3); color: var(--verde-folha); padding: 4px 10px; border-radius: 20px; font-size: 11px; }
@@ -249,43 +249,7 @@
 
 <header>
   <div class="logo">
-    <!-- Logo SVG: árvore com pin no centro, abelha dentro do pin -->
-    <svg class="logo-icon" viewBox="0 0 42 42" fill="none" xmlns="http://www.w3.org/2000/svg">
-      <!-- Tronco -->
-      <rect x="18.5" y="31" width="5" height="9" rx="2" fill="#5a3e2b"/>
-      <!-- Copa da árvore (3 camadas) -->
-      <ellipse cx="21" cy="27" rx="11" ry="7" fill="#3a6b3a"/>
-      <ellipse cx="21" cy="22" rx="10" ry="8" fill="#4a7c4a"/>
-      <ellipse cx="21" cy="17" rx="8.5" ry="7.5" fill="#6bab5e"/>
-      <!-- Pin GPS centralizado na copa -->
-      <!-- Sombra suave do pin -->
-      <ellipse cx="21" cy="26" rx="3" ry="1" fill="#1a2e1a" opacity="0.25"/>
-      <!-- Corpo do pin -->
-      <path d="M21 7c-4 0-7.2 3.2-7.2 7.2 0 5.4 7.2 12.8 7.2 12.8s7.2-7.4 7.2-12.8C28.2 10.2 25 7 21 7z" fill="#c8862a"/>
-      <!-- Borda do pin -->
-      <path d="M21 7c-4 0-7.2 3.2-7.2 7.2 0 5.4 7.2 12.8 7.2 12.8s7.2-7.4 7.2-12.8C28.2 10.2 25 7 21 7z" stroke="#e9b45a" stroke-width="0.8" fill="none"/>
-      <!-- Círculo interno do pin -->
-      <circle cx="21" cy="14" r="4.8" fill="#1a2e1a"/>
-      <!-- Abelha bugia dentro do pin -->
-      <!-- Corpo da abelha -->
-      <ellipse cx="21" cy="14.5" rx="2.2" ry="3" fill="#e9b45a"/>
-      <!-- Listras -->
-      <rect x="18.8" y="13.6" width="4.4" height="0.9" rx="0.4" fill="#1a2e1a" opacity="0.85"/>
-      <rect x="18.8" y="15.2" width="4.4" height="0.9" rx="0.4" fill="#1a2e1a" opacity="0.85"/>
-      <!-- Asas -->
-      <ellipse cx="18.2" cy="13.5" rx="1.8" ry="0.9" fill="#f5edd8" opacity="0.7" transform="rotate(-25 18.2 13.5)"/>
-      <ellipse cx="23.8" cy="13.5" rx="1.8" ry="0.9" fill="#f5edd8" opacity="0.7" transform="rotate(25 23.8 13.5)"/>
-      <!-- Cabeça -->
-      <circle cx="21" cy="11.8" r="1.5" fill="#e9b45a"/>
-      <!-- Olhos -->
-      <circle cx="20.4" cy="11.5" r="0.35" fill="#1a2e1a"/>
-      <circle cx="21.6" cy="11.5" r="0.35" fill="#1a2e1a"/>
-      <!-- Antenas -->
-      <line x1="20.4" y1="10.5" x2="19.4" y2="9.3" stroke="#e9b45a" stroke-width="0.6" stroke-linecap="round"/>
-      <line x1="21.6" y1="10.5" x2="22.6" y2="9.3" stroke="#e9b45a" stroke-width="0.6" stroke-linecap="round"/>
-      <circle cx="19.2" cy="9.1" r="0.45" fill="#c8862a"/>
-      <circle cx="22.8" cy="9.1" r="0.45" fill="#c8862a"/>
-    </svg>
+    <img src="icon-192.png" class="logo-icon" alt="MelipoMapa">
     <div>
       <div class="logo-text">MelipoMapa</div>
       <span class="logo-sub">Registro de Iscas</span>
