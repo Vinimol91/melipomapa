@@ -1,0 +1,25 @@
+{
+  "name": "MelipoMapa — Registro de Iscas",
+  "short_name": "MelipoMapa",
+  "description": "App para meliponicultores registrarem iscas de abelhas nativas com foto, GPS e mapa.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a2e1a",
+  "theme_color": "#1a2e1a",
+  "orientation": "portrait",
+  "lang": "pt-BR",
+  "icons": [
+    {
+      "src": "icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

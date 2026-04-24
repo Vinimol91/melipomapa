@@ -9,17 +9,32 @@
 <meta name="author" content="MelipoMapa">
 <meta name="robots" content="index, follow">
 <meta name="google-site-verification" content="erviwBzLEWxcOuCmxup1V9o0C2yop3q1WOKTPLY3ZdY">
-<link rel="canonical" href="https://melipomapa.netlify.app/">
+<link rel="canonical" href="https://melipomapa.com.br/">
 <!-- Open Graph (WhatsApp, Facebook) -->
 <meta property="og:title" content="MelipoMapa — App de Registro de Iscas para Meliponicultura">
 <meta property="og:description" content="App gratuito para meliponicultores registrarem iscas de abelhas nativas sem ferrão com foto, GPS e mapa interativo.">
-<meta property="og:url" content="https://melipomapa.netlify.app/">
+<meta property="og:url" content="https://melipomapa.com.br/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="pt_BR">
 <!-- Twitter/X -->
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="MelipoMapa — App de Registro de Iscas">
-<meta name="twitter:description" content="App gratuito para meliponicultores registrarem iscas de abelhas nativas com foto, GPS e mapa interativo.">`
+<meta name="twitter:description" content="App gratuito para meliponicultores registrarem iscas de abelhas nativas com foto, GPS e mapa interativo.">
+<!-- PWA -->
+<meta name="theme-color" content="#1a2e1a">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="MelipoMapa">
+<link rel="manifest" href="manifest.json">
+<!-- Google Analytics -->
+<script async src="https://www.googletagmanager.com/gtag/js?id=G-ZGJVM4KKG1"></script>
+<script>
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+  gtag('js', new Date());
+  gtag('config', 'G-ZGJVM4KKG1');
+</script>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,300;0,500;0,700;1,300&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
@@ -1064,6 +1079,15 @@ function toggleLayer() {
     btn.textContent = '🗺️ Mapa';
   }
   modoSatelite = !modoSatelite;
+}
+
+// PWA — Service Worker
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('sw.js')
+      .then(() => console.log('SW registrado'))
+      .catch(err => console.log('SW erro:', err));
+  });
 }
 </script>
 </body>
