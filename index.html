@@ -453,6 +453,10 @@
             <option value="ocupada">🟡 Ocupada — abelhas presentes!</option>
             <option value="vazia">⚫ Vazia — sem resultado</option>
           </select>
+          <div id="especieCapturadaDiv" style="display:none;margin-top:8px">
+            <input type="text" id="especieCapturada" class="inline-input" placeholder="Qual abelha foi capturada? Ex: Jataí, Mandaçaia...">
+            <button class="inline-btn" onclick="salvarEspecieCapturada()">💾 Salvar espécie</button>
+          </div>
         </div>
       </div>
 
@@ -466,11 +470,14 @@
         <button class="btn-add-visita" onclick="toggleVisitaForm()">＋ Registrar nova visita</button>
         <div class="visita-form" id="visitaForm">
           <textarea id="visitaObs" placeholder="O que você observou? Ex: Abelhas explorando a entrada, resina fresca..."></textarea>
-          <select id="visitaStatus">
+          <select id="visitaStatus" onchange="toggleVisitaEspecie()">
             <option value="ativa">🟢 Ainda Ativa</option>
             <option value="ocupada">🟡 Ocupada — abelhas presentes!</option>
             <option value="vazia">⚫ Vazia</option>
           </select>
+          <div id="visitaEspecieDiv" style="display:none;margin-top:6px">
+            <input type="text" id="visitaEspecie" placeholder="Qual abelha foi capturada? Ex: Jataí..." style="width:100%;background:rgba(26,46,26,0.6);border:1px solid rgba(107,171,94,0.2);border-radius:10px;padding:9px 12px;color:var(--creme);font-family:'DM Mono',monospace;font-size:12px;outline:none;">
+          </div>
           <!-- Foto da visita -->
           <div style="margin-bottom:8px">
             <div class="card-label" style="margin-bottom:6px;margin-top:4px">📷 Foto da visita (opcional)</div>
@@ -513,12 +520,103 @@
 </footer>
 
 <script>
+// ══════════════════════════════════════════
+// INDEXEDDB — armazenamento de fotos
+// Sem limite prático, suporta 100+ iscas
+// ══════════════════════════════════════════
+let db = null;
+const DB_NAME = 'melipoMapa', DB_VERSION = 1, STORE_FOTOS = 'fotos';
+
+function initDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, DB_VERSION);
+    req.onupgradeneeded = e => {
+      const database = e.target.result;
+      if (!database.objectStoreNames.contains(STORE_FOTOS)) {
+        database.createObjectStore(STORE_FOTOS, { keyPath: 'id' });
+      }
+    };
+    req.onsuccess = e => { db = e.target.result; resolve(); };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function salvarFotoDB(id, fotos) {
+  if (!db || !fotos || !fotos.length) return Promise.resolve();
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE_FOTOS, 'readwrite');
+    tx.objectStore(STORE_FOTOS).put({ id, fotos });
+    tx.oncomplete = resolve;
+    tx.onerror = resolve; // não bloqueia se falhar
+  });
+}
+
+function carregarFotoDB(id) {
+  if (!db) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE_FOTOS, 'readonly');
+    const req = tx.objectStore(STORE_FOTOS).get(id);
+    req.onsuccess = () => resolve(req.result ? req.result.fotos : null);
+    req.onerror = () => resolve(null);
+  });
+}
+
+function excluirFotoDB(id) {
+  if (!db) return Promise.resolve();
+  return new Promise((resolve) => {
+    const tx = db.transaction(STORE_FOTOS, 'readwrite');
+    tx.objectStore(STORE_FOTOS).delete(id);
+    tx.oncomplete = resolve;
+    tx.onerror = resolve;
+  });
+}
+
+// ══════════════════════════════════════════
+// ESTADO — iscas sem fotos no localStorage
+// ══════════════════════════════════════════
 let iscas = JSON.parse(localStorage.getItem('melipoMapa_v2') || '[]');
+// Migrar fotos antigas do localStorage para IndexedDB
+async function migrarFotosAntigas() {
+  for (const isca of iscas) {
+    if (isca.foto || (isca.fotos && isca.fotos.length)) {
+      const fotosAnteriores = isca.fotos && isca.fotos.length ? isca.fotos : (isca.foto ? [isca.foto] : []);
+      await salvarFotoDB(isca.id, fotosAnteriores);
+      isca.foto = null;
+      isca.fotos = [];
+    }
+    // Migrar fotos de visitas
+    if (isca.historico) {
+      for (const h of isca.historico) {
+        if (h.foto) {
+          await salvarFotoDB(isca.id + '_v_' + h.data, [h.foto]);
+          h.foto = null;
+        }
+      }
+    }
+  }
+  salvarStorage();
+}
+
 let locAtual = null;
 let fotoBase64 = null;
 let visitaFotoBase64 = null;
 let iscaAtual = null;
 let filtroAtivo = 'todas';
+
+// Inicializar DB e migrar dados ao carregar
+initDB().then(() => {
+  migrarFotosAntigas();
+  atualizarBadge();
+  capturarLocalizacao();
+  const d = new Date(); d.setDate(d.getDate()+7);
+  document.getElementById('dataRevisita').value = d.toISOString().slice(0,10);
+}).catch(() => {
+  // Fallback se IndexedDB não disponível
+  atualizarBadge();
+  capturarLocalizacao();
+  const d = new Date(); d.setDate(d.getDate()+7);
+  document.getElementById('dataRevisita').value = d.toISOString().slice(0,10);
+});
 
 // Toggle campo "outro/outra"
 function toggleOutraOpcao(select, divId) {
@@ -541,8 +639,9 @@ function handleVisitaFoto(e) {
   const img2 = new Image(), url = URL.createObjectURL(file);
   img2.onload = () => {
     const c = document.createElement('canvas');
-    const M=800; let w=img2.width, h=img2.height;
-    if (w>M) { h=h*M/w; w=M; }
+    const M=640; let w=img2.width, h=img2.height;
+    if (w>M) { h=Math.round(h*M/w); w=M; }
+    if (h>M) { w=Math.round(w*M/h); h=M; }
     c.width=w; c.height=h;
     c.getContext('2d').drawImage(img2,0,0,w,h);
     visitaFotoBase64 = c.toDataURL('image/jpeg', 0.82);
@@ -556,7 +655,22 @@ function handleVisitaFoto(e) {
   img2.src = url;
 }
 
-function salvarStorage() { localStorage.setItem('melipoMapa_v2', JSON.stringify(iscas)); }
+function salvarStorage() {
+  try {
+    localStorage.setItem('melipoMapa_v2', JSON.stringify(iscas));
+    return true;
+  } catch(e) {
+    try {
+      const iscasSemFotos = iscas.map(i => ({...i, historico: (i.historico||[]).map(h => ({...h, foto: null}))}));
+      localStorage.setItem('melipoMapa_v2', JSON.stringify(iscasSemFotos));
+      toast('26a0Fe0f Armazenamento quase cheio! Exporte seus dados em breve.', 'var(--mel)');
+      return true;
+    } catch(e2) {
+      toast('274c Sem espa00e7o no dispositivo! Exporte e limpe iscas antigas.', '#e06060');
+      return false;
+    }
+  }
+}
 
 function toast(msg, cor) {
   const t = document.getElementById('toast');
@@ -592,11 +706,12 @@ function handleFoto(e) {
   const img2 = new Image(), url = URL.createObjectURL(file);
   img2.onload = () => {
     const c = document.createElement('canvas');
-    const M=800; let w=img2.width, h=img2.height;
-    if (w>M) { h=h*M/w; w=M; }
+    const M=640; let w=img2.width, h=img2.height;
+    if (w>M) { h=Math.round(h*M/w); w=M; }
+    if (h>M) { w=Math.round(w*M/h); h=M; }
     c.width=w; c.height=h;
     c.getContext('2d').drawImage(img2,0,0,w,h);
-    fotoBase64 = c.toDataURL('image/jpeg', 0.82);
+    fotoBase64 = c.toDataURL('image/jpeg', 0.60);
     URL.revokeObjectURL(url);
     document.getElementById('fotoPlaceholder').style.display='none';
     const area = document.getElementById('fotoArea');
@@ -624,14 +739,9 @@ function capturarLocalizacao() {
   }, {enableHighAccuracy:true, timeout:10000});
 }
 
-window.addEventListener('load', () => {
-  atualizarBadge(); capturarLocalizacao();
-  const d=new Date(); d.setDate(d.getDate()+7);
-  document.getElementById('dataRevisita').value=d.toISOString().slice(0,10);
-});
 
 // SALVAR ISCA
-function salvarIsca() {
+async function salvarIsca() {
   const nome=document.getElementById('nomeIsca').value.trim();
   if (!nome) { toast('⚠️ Informe um nome para a isca','var(--mel)'); return; }
   const isca = {
@@ -640,15 +750,18 @@ function salvarIsca() {
     atrativo: resolverCampo('tipoAtrativo','ativoOutraTexto'),
     tipo: resolverCampo('tipoIsca','iscaOutraTexto'),
     obs:document.getElementById('obs').value.trim(),
-    foto:fotoBase64,
-    fotos: fotoBase64 ? [fotoBase64] : [],
+    foto: null, fotos: [], // fotos ficam no IndexedDB
     lat:locAtual?locAtual.lat:null, lon:locAtual?locAtual.lon:null,
     acc:locAtual?locAtual.acc:null, demo:locAtual?!!locAtual.demo:false,
     status:'ativa',
     proximaRevisita:document.getElementById('dataRevisita').value||null,
     historico:[{ data:new Date().toISOString(), tipo:'instalacao', status:'ativa', obs:'Isca instalada.' }]
   };
-  iscas.unshift(isca); salvarStorage(); atualizarBadge();
+  // Salvar foto no IndexedDB separadamente
+  if (fotoBase64) await salvarFotoDB(isca.id, [fotoBase64]);
+  iscas.unshift(isca);
+  if (!salvarStorage()) { iscas.shift(); return; }
+  atualizarBadge();
   ['nomeIsca','obs','especieAlvo','ativoOutraTexto','iscaOutraTexto'].forEach(id=>document.getElementById(id).value='');
   ['tipoAtrativo','tipoIsca'].forEach(id=>{ document.getElementById(id).value=''; });
   ['ativoOutraDiv','iscaOutraDiv'].forEach(id=>document.getElementById(id).style.display='none');
@@ -698,8 +811,8 @@ function renderLista() {
       else if (diff===0) badge=`<div class="revisita-badge">🔔 Hoje!</div>`;
       else if (diff<=3) badge=`<div class="revisita-badge">🔔 em ${diff}d</div>`;
     }
-    return `<div class="isca-card" onclick="abrirIsca('${isca.id}')">
-      ${isca.foto?`<img src="${isca.foto}" alt="" class="isca-foto">`:`<div class="isca-foto-placeholder">🌿</div>`}
+    return `<div class="isca-card" onclick="abrirIsca('${isca.id}')" id="card_${isca.id}">
+      <div class="isca-foto-placeholder" id="foto_${isca.id}">🌿</div>
       ${badge}
       <div class="isca-info">
         <div class="isca-header">
@@ -709,6 +822,7 @@ function renderLista() {
         <div class="isca-meta">
           <span>📅 ${fmtDT(isca.data)}</span>
           ${isca.especie&&isca.especie!=='—'?`<span>🐝 ${isca.especie.split('(')[0].trim()}</span>`:''}
+          ${isca.especieCapturada?`<span>✅ ${isca.especieCapturada}</span>`:''}
           ${(isca.historico||[]).length>1?`<span>🔍 ${isca.historico.length} visitas</span>`:''}
         </div>
         ${isca.lat?`<div class="isca-coords">📍 ${isca.lat.toFixed(5)}, ${isca.lon.toFixed(5)}${isca.demo?' [demo]':''}</div>`:''}
@@ -716,6 +830,16 @@ function renderLista() {
       </div>
     </div>`;
   }).join('');
+
+  // Carregar fotos dos cards do IndexedDB de forma assíncrona
+  lista.forEach(isca => {
+    carregarFotoDB(isca.id).then(fotos => {
+      const el = document.getElementById('foto_' + isca.id);
+      if (el && fotos && fotos.length) {
+        el.outerHTML = `<img src="${fotos[0]}" alt="" class="isca-foto">`;
+      }
+    });
+  });
 }
 
 // MODAL
@@ -733,19 +857,34 @@ function abrirIsca(id) {
   document.getElementById('modalRevisita').textContent=m.proximaRevisita?fmtD(m.proximaRevisita):'Não definida';
   document.getElementById('novaDataRevisita').value=m.proximaRevisita||'';
 
-  // Mostrar todas as fotos (instalação + visitas)
-  const todasFotos = m.fotos && m.fotos.length ? m.fotos : (m.foto ? [m.foto] : []);
-  // Adicionar fotos das visitas
-  const fotosVisitas = (m.historico||[]).filter(h=>h.foto).map(h=>h.foto);
-  const fotosAll = [...todasFotos, ...fotosVisitas].filter(Boolean);
+  // Mostrar campo espécie capturada se ocupada
+  const divEsp = document.getElementById('especieCapturadaDiv');
+  divEsp.style.display = m.status === 'ocupada' ? 'block' : 'none';
+  if (m.status === 'ocupada') document.getElementById('especieCapturada').value = m.especieCapturada || '';
+
+  // Carregar fotos do IndexedDB
   const fotosDiv = document.getElementById('modalFotos');
-  if (fotosAll.length) {
-    fotosDiv.innerHTML = fotosAll.map((f,i)=>`
-      <div style="position:relative">
-        <img src="${f}" style="width:100%;max-height:260px;object-fit:cover;display:block;${i>0?'margin-top:4px':'margin-top:14px'}">
-        <div style="position:absolute;top:8px;left:8px;background:rgba(26,46,26,0.8);padding:3px 8px;border-radius:8px;font-size:10px;color:var(--mel-claro)">${i===0?'📷 Instalação':'📷 Visita '+(i)}</div>
-      </div>`).join('');
-  } else { fotosDiv.innerHTML = ''; }
+  fotosDiv.innerHTML = '<div style="padding:14px 0;text-align:center;font-size:11px;color:rgba(245,237,216,0.3)">Carregando fotos...</div>';
+
+  carregarFotoDB(m.id).then(fotos => {
+    const fotosIsca = fotos || [];
+    // Carregar fotos das visitas
+    const visitasComFoto = (m.historico||[]).filter(h => h.tipo === 'revisita');
+    const promises = visitasComFoto.map(h => carregarFotoDB(m.id + '_v_' + h.data));
+    Promise.all(promises).then(resultados => {
+      const fotosVisitas = resultados.filter(Boolean).map(arr => arr[0]).filter(Boolean);
+      const fotosAll = [...fotosIsca, ...fotosVisitas];
+      if (fotosAll.length) {
+        fotosDiv.innerHTML = fotosAll.map((f,i) => `
+          <div style="position:relative">
+            <img src="${f}" style="width:100%;max-height:260px;object-fit:cover;display:block;${i>0?'margin-top:4px':'margin-top:14px'}">
+            <div style="position:absolute;top:8px;left:8px;background:rgba(26,46,26,0.8);padding:3px 8px;border-radius:8px;font-size:10px;color:var(--mel-claro)">${i===0?'📷 Instalação':'📷 Visita '+i}</div>
+          </div>`).join('');
+      } else {
+        fotosDiv.innerHTML = '';
+      }
+    });
+  });
 
   // Reset visita form
   document.getElementById('visitaForm').classList.remove('open');
@@ -785,7 +924,26 @@ function atualizarStatus() {
   iscaAtual.status=ns;
   if (!iscaAtual.historico) iscaAtual.historico=[];
   iscaAtual.historico.push({ data:new Date().toISOString(), tipo:'status', status:ns, obs:'Status atualizado.' });
+  // Mostrar campo de espécie capturada se ocupada
+  const div = document.getElementById('especieCapturadaDiv');
+  div.style.display = ns === 'ocupada' ? 'block' : 'none';
+  if (ns === 'ocupada') {
+    document.getElementById('especieCapturada').value = iscaAtual.especieCapturada || '';
+  }
   salvarStorage(); renderLista(); renderHistorico(); toast('Status atualizado!');
+}
+
+function salvarEspecieCapturada() {
+  if (!iscaAtual) return;
+  const esp = document.getElementById('especieCapturada').value.trim();
+  iscaAtual.especieCapturada = esp;
+  salvarStorage(); renderLista();
+  toast('🐝 Espécie registrada!');
+}
+
+function toggleVisitaEspecie() {
+  const ns = document.getElementById('visitaStatus').value;
+  document.getElementById('visitaEspecieDiv').style.display = ns === 'ocupada' ? 'block' : 'none';
 }
 
 function salvarRevisita() {
@@ -800,19 +958,26 @@ function toggleVisitaForm() {
   document.getElementById('visitaForm').classList.toggle('open');
 }
 
-function salvarVisita() {
+async function salvarVisita() {
   if (!iscaAtual) return;
   const obs=document.getElementById('visitaObs').value.trim();
   const ns=document.getElementById('visitaStatus').value;
+  const esp=document.getElementById('visitaEspecie')?document.getElementById('visitaEspecie').value.trim():'';
+  const visitaData = new Date().toISOString();
   if (!iscaAtual.historico) iscaAtual.historico=[];
-  iscaAtual.historico.push({ data:new Date().toISOString(), tipo:'revisita', status:ns, obs, foto: visitaFotoBase64||null });
+  iscaAtual.historico.push({ data:visitaData, tipo:'revisita', status:ns, obs, foto: null });
+  // Salvar foto da visita no IndexedDB
+  if (visitaFotoBase64) await salvarFotoDB(iscaAtual.id + '_v_' + visitaData, [visitaFotoBase64]);
   iscaAtual.status=ns;
+  if (ns==='ocupada' && esp) iscaAtual.especieCapturada=esp;
   const p=new Date(); p.setDate(p.getDate()+7);
   iscaAtual.proximaRevisita=p.toISOString().slice(0,10);
   document.getElementById('novaDataRevisita').value=iscaAtual.proximaRevisita;
   document.getElementById('modalRevisita').textContent=fmtD(iscaAtual.proximaRevisita);
   document.getElementById('modalStatusSelect').value=ns;
   document.getElementById('visitaObs').value='';
+  document.getElementById('visitaEspecieDiv').style.display='none';
+  if (document.getElementById('visitaEspecie')) document.getElementById('visitaEspecie').value='';
   document.getElementById('visitaForm').classList.remove('open');
   // Reset foto visita
   visitaFotoBase64=null;
@@ -830,9 +995,14 @@ function abrirMaps() {
   window.open(`https://maps.google.com/?q=${iscaAtual.lat},${iscaAtual.lon}`,'_blank');
 }
 
-function excluirIsca() {
+async function excluirIsca() {
   if (!iscaAtual) return;
   if (!confirm(`Remover "${iscaAtual.nome}"?`)) return;
+  // Excluir fotos do IndexedDB
+  await excluirFotoDB(iscaAtual.id);
+  for (const h of (iscaAtual.historico||[])) {
+    if (h.tipo === 'revisita') await excluirFotoDB(iscaAtual.id + '_v_' + h.data);
+  }
   iscas=iscas.filter(i=>i.id!==iscaAtual.id);
   salvarStorage(); atualizarBadge(); fecharModal(); renderLista();
   toast('Isca removida.','#e08080');
