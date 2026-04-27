@@ -658,19 +658,43 @@ function handleVisitaFoto(e) {
 function salvarStorage() {
   try {
     localStorage.setItem('melipoMapa_v2', JSON.stringify(iscas));
+    const count = parseInt(localStorage.getItem('melipoMapa_saveCount')||'0') + 1;
+    localStorage.setItem('melipoMapa_saveCount', count);
+    if (count % 10 === 0) {
+      setTimeout(() => {
+        if (confirm('💾 Você tem ' + iscas.length + ' iscas salvas!\n\nRecomendamos exportar um backup agora.\n\nIr para Exportar?')) {
+          switchTab('exportar');
+        }
+      }, 1500);
+    }
     return true;
   } catch(e) {
     try {
       const iscasSemFotos = iscas.map(i => ({...i, historico: (i.historico||[]).map(h => ({...h, foto: null}))}));
       localStorage.setItem('melipoMapa_v2', JSON.stringify(iscasSemFotos));
-      toast('26a0Fe0f Armazenamento quase cheio! Exporte seus dados em breve.', 'var(--mel)');
+      toast('⚠️ Armazenamento quase cheio! Exporte seus dados em breve.', 'var(--mel)');
       return true;
     } catch(e2) {
-      toast('274c Sem espa00e7o no dispositivo! Exporte e limpe iscas antigas.', '#e06060');
+      toast('❌ Sem espaço no dispositivo! Exporte e limpe iscas antigas.', '#e06060');
       return false;
     }
   }
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 function toast(msg, cor) {
   const t = document.getElementById('toast');
@@ -929,8 +953,11 @@ function atualizarStatus() {
   div.style.display = ns === 'ocupada' ? 'block' : 'none';
   if (ns === 'ocupada') {
     document.getElementById('especieCapturada').value = iscaAtual.especieCapturada || '';
+    setTimeout(() => document.getElementById('especieCapturada').focus(), 100);
   }
-  salvarStorage(); renderLista(); renderHistorico(); toast('Status atualizado!');
+  salvarStorage();
+  renderHistorico();
+  toast('Status atualizado!');
 }
 
 function salvarEspecieCapturada() {
