@@ -243,9 +243,139 @@
   ::-webkit-scrollbar { width: 4px; }
   ::-webkit-scrollbar-track { background: transparent; }
   ::-webkit-scrollbar-thumb { background: rgba(107,171,94,0.2); border-radius: 2px; }
+
+  /* ── BANNER DE INSTALAÇÃO ── */
+  .install-banner {
+    display: none;
+    position: fixed;
+    bottom: 0; left: 0; right: 0;
+    z-index: 500;
+    background: linear-gradient(135deg, #2d4a2d, #1a2e1a);
+    border-top: 1px solid rgba(107,171,94,0.3);
+    padding: 14px 16px;
+    box-shadow: 0 -4px 24px rgba(0,0,0,0.4);
+    animation: slideUpBanner 0.4s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  @keyframes slideUpBanner { from{transform:translateY(100%)} to{transform:translateY(0)} }
+  .install-banner.visible { display: block; }
+  .banner-top { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .banner-icon { width: 44px; height: 44px; border-radius: 10px; flex-shrink: 0; }
+  .banner-title { font-family: 'Fraunces', serif; font-size: 16px; font-weight: 500; color: var(--creme); }
+  .banner-sub { font-size: 11px; color: rgba(245,237,216,0.55); margin-top: 2px; }
+  .banner-steps { font-size: 11px; color: rgba(245,237,216,0.65); line-height: 1.8; margin-bottom: 12px; padding: 10px 12px; background: rgba(0,0,0,0.2); border-radius: 10px; }
+  .banner-steps strong { color: var(--mel-claro); }
+  .banner-btns { display: flex; gap: 8px; }
+  .btn-instalar {
+    flex: 1; padding: 12px;
+    background: linear-gradient(135deg, var(--mel), var(--mel-claro));
+    border: none; border-radius: 12px;
+    color: var(--verde-mata); font-family: 'Fraunces', serif;
+    font-size: 15px; font-weight: 500; cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-instalar:hover { transform: translateY(-1px); }
+  .btn-fechar-banner {
+    padding: 12px 16px;
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 12px; color: rgba(245,237,216,0.5);
+    font-family: 'DM Mono', monospace; font-size: 12px;
+    cursor: pointer;
+  }
+
+  /* Modal iOS instrução */
+  .ios-modal {
+    display: none;
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,0.7);
+    z-index: 600;
+    align-items: flex-end;
+    backdrop-filter: blur(4px);
+  }
+  .ios-modal.open { display: flex; }
+  .ios-box {
+    width: 100%;
+    background: var(--verde-medio);
+    border-radius: 24px 24px 0 0;
+    padding: 24px 20px 36px;
+    animation: slideUp 0.35s cubic-bezier(0.34,1.56,0.64,1);
+  }
+  .ios-handle { width: 40px; height: 4px; background: rgba(245,237,216,0.2); border-radius: 2px; margin: 0 auto 20px; }
+  .ios-title { font-family: 'Fraunces', serif; font-size: 20px; font-weight: 500; margin-bottom: 6px; }
+  .ios-sub { font-size: 12px; color: rgba(245,237,216,0.5); margin-bottom: 20px; }
+  .ios-step { display: flex; align-items: flex-start; gap: 12px; padding: 12px 0; border-bottom: 1px solid rgba(107,171,94,0.1); }
+  .ios-step:last-child { border-bottom: none; }
+  .ios-num { width: 26px; height: 26px; background: var(--mel); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; color: var(--verde-mata); flex-shrink: 0; }
+  .ios-step-text { font-size: 13px; color: var(--creme); line-height: 1.5; }
+  .ios-step-text strong { color: var(--mel-claro); }
+  .ios-arrow { text-align: center; font-size: 32px; margin: 8px 0 -8px; opacity: 0.6; animation: bounce 1.5s infinite; }
+  @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(6px)} }
+
+  /* Botão fixo discreto de instalação */
+  .btn-instalar-fixo {
+    display: none;
+    position: fixed;
+    bottom: 20px; right: 16px;
+    z-index: 400;
+    background: var(--mel);
+    border: none; border-radius: 30px;
+    padding: 10px 16px;
+    color: var(--verde-mata);
+    font-family: 'DM Mono', monospace;
+    font-size: 12px; font-weight: 600;
+    cursor: pointer;
+    align-items: center; gap: 6px;
+    box-shadow: 0 4px 16px rgba(200,134,42,0.4);
+    transition: all 0.2s;
+  }
+  .btn-instalar-fixo:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(200,134,42,0.5); }
 </style>
 </head>
 <body>
+
+<!-- ── BANNER DE INSTALAÇÃO ── -->
+<div class="install-banner" id="installBanner">
+  <div class="banner-top">
+    <img src="icon-192.png" class="banner-icon" alt="MelipoMapa">
+    <div>
+      <div class="banner-title">Instalar MelipoMapa</div>
+      <div class="banner-sub">Acesso rápido, funciona offline na mata 🌿</div>
+    </div>
+  </div>
+  <div class="banner-steps" id="bannerSteps"></div>
+  <div class="banner-btns">
+    <button class="btn-instalar" id="btnInstalar" onclick="acaoInstalar()">📲 Instalar app</button>
+    <button class="btn-fechar-banner" onclick="fecharBanner()">Agora não</button>
+  </div>
+</div>
+
+<!-- ── MODAL iOS INSTRUÇÃO ── -->
+<div class="ios-modal" id="iosModal" onclick="fecharIosModal(event)">
+  <div class="ios-box">
+    <div class="ios-handle"></div>
+    <div class="ios-title">Instalar no iPhone 🍎</div>
+    <div class="ios-sub">Siga os passos abaixo no Safari:</div>
+    <div class="ios-step">
+      <div class="ios-num">1</div>
+      <div class="ios-step-text">Toque no botão de <strong>Compartilhar</strong> na barra inferior do Safari — é o ícone de quadrado com seta ⎙</div>
+    </div>
+    <div class="ios-step">
+      <div class="ios-num">2</div>
+      <div class="ios-step-text">Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong></div>
+    </div>
+    <div class="ios-step">
+      <div class="ios-num">3</div>
+      <div class="ios-step-text">Toque em <strong>"Adicionar"</strong> no canto superior direito</div>
+    </div>
+    <div class="ios-arrow">↓</div>
+    <button class="btn-instalar" style="margin-top:16px;width:100%;border:none;cursor:pointer" onclick="fecharIosModal()">Entendi! ✓</button>
+  </div>
+</div>
+
+<!-- Botão fixo discreto (aparece após fechar banner) -->
+<button class="btn-instalar-fixo" id="btnInstalarFixo" onclick="reabrirBanner()">
+  📲 Instalar app
+</button>
 
 <header>
   <div class="logo">
@@ -1256,8 +1386,84 @@ function toggleLayer() {
   modoSatelite = !modoSatelite;
 }
 
-// PWA — Service Worker
-if ('serviceWorker' in navigator) {
+// ══════════════════════════════════
+// BANNER DE INSTALAÇÃO
+// ══════════════════════════════════
+let deferredPrompt = null;
+const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+const isAndroid = /android/i.test(navigator.userAgent);
+const isInStandalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+const bannerJaFechado = (() => {
+  const val = localStorage.getItem('melipoMapa_bannerFechado');
+  if (!val) return false;
+  return Date.now() < parseInt(val); // false se já passou os 3 dias
+})();
+
+function mostrarBanner() {
+  if (isInStandalone || bannerJaFechado) return;
+  const banner = document.getElementById('installBanner');
+  const steps = document.getElementById('bannerSteps');
+  if (isIOS) {
+    steps.innerHTML = '📱 <strong>iPhone:</strong> Toque em Compartilhar ⎙ → "Adicionar à Tela de Início"';
+    banner.classList.add('visible');
+  } else if (isAndroid) {
+    steps.innerHTML = '🤖 <strong>Android:</strong> Toque em "Instalar app" abaixo para instalar';
+    banner.classList.add('visible');
+  }
+}
+
+function acaoInstalar() {
+  if (isIOS) {
+    document.getElementById('iosModal').classList.add('open');
+  } else if (deferredPrompt) {
+    deferredPrompt.prompt();
+    deferredPrompt.userChoice.then(choice => {
+      if (choice.outcome === 'accepted') fecharBanner();
+      deferredPrompt = null;
+    });
+  }
+}
+
+function fecharBanner() {
+  document.getElementById('installBanner').classList.remove('visible');
+  // Lembra por 3 dias, depois mostra de novo
+  const em3dias = Date.now() + (3 * 24 * 60 * 60 * 1000);
+  localStorage.setItem('melipoMapa_bannerFechado', em3dias);
+  // Mostra botão fixo discreto
+  document.getElementById('btnInstalarFixo').style.display = 'flex';
+}
+
+function fecharIosModal(e) {
+  if (!e || e.target === document.getElementById('iosModal')) {
+    document.getElementById('iosModal').classList.remove('open');
+  }
+}
+
+function reabrirBanner() {
+  document.getElementById('btnInstalarFixo').style.display = 'none';
+  localStorage.removeItem('melipoMapa_bannerFechado');
+  mostrarBanner();
+}
+
+// Capturar evento de instalação Android
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  mostrarBanner();
+});
+
+// Mostrar banner iOS após 2 segundos
+setTimeout(() => {
+  if (isIOS && !isInStandalone && !bannerJaFechado) mostrarBanner();
+}, 2000);
+
+// Se Android mas beforeinstallprompt não disparou ainda
+setTimeout(() => {
+  if (isAndroid && !isInStandalone && !bannerJaFechado && !deferredPrompt) {
+    document.getElementById('bannerSteps').innerHTML = '🤖 <strong>Android:</strong> Toque nos 3 pontinhos do Chrome → "Adicionar à tela inicial"';
+    document.getElementById('installBanner').classList.add('visible');
+  }
+}, 3000);
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
       .then(() => console.log('SW registrado'))
