@@ -733,24 +733,6 @@ let visitaFotoBase64 = null;
 let iscaAtual = null;
 let filtroAtivo = 'todas';
 
-// Inicializar DB e migrar dados ao carregar
-initDB().then(() => {
-  migrarFotosAntigas();
-  init();
-}).catch(() => {
-  init();
-});
-
-function init() {
-  atualizarBadge();
-  capturarLocalizacao();
-  const d = new Date(); d.setDate(d.getDate()+7);
-  document.getElementById('dataRevisita').value = d.toISOString().slice(0,10);
-  // Limpar chave antiga do banner (formato antigo era '1')
-  const oldVal = localStorage.getItem('melipoMapa_bannerFechado');
-  if (oldVal === '1') localStorage.removeItem('melipoMapa_bannerFechado');
-}
-
 // Toggle campo "outro/outra"
 function toggleOutraOpcao(select, divId) {
   document.getElementById(divId).style.display = select.value === 'outro' ? 'block' : 'none';
@@ -1468,6 +1450,21 @@ setTimeout(() => {
     document.getElementById('installBanner').classList.add('visible');
   }
 }, 3000);
+
+// ══ INICIALIZAÇÃO ══
+function init() {
+  atualizarBadge();
+  capturarLocalizacao();
+  const d = new Date(); d.setDate(d.getDate()+7);
+  document.getElementById('dataRevisita').value = d.toISOString().slice(0,10);
+  const oldVal = localStorage.getItem('melipoMapa_bannerFechado');
+  if (oldVal === '1') localStorage.removeItem('melipoMapa_bannerFechado');
+}
+
+initDB().then(() => { migrarFotosAntigas(); init(); }).catch(() => { init(); });
+
+// PWA Service Worker
+if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
       .then(() => console.log('SW registrado'))
