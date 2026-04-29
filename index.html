@@ -92,8 +92,8 @@
   .foto-placeholder .icon { font-size: 34px; margin-bottom: 8px; display: block; }
   .foto-placeholder p { font-size: 12px; }
   #fotoInput { display: none; }
-  .foto-overlay { position: absolute; inset: 0; background: rgba(26,46,26,0.65); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; }
-  .foto-area:hover .foto-overlay { opacity: 1; }
+  .foto-overlay { position: absolute; inset: 0; background: rgba(26,46,26,0.65); display: flex; align-items: center; justify-content: center; opacity: 0; transition: opacity 0.2s; pointer-events: none; }
+  .foto-area.tem-foto:hover .foto-overlay { opacity: 1; pointer-events: auto; }
   .foto-overlay span { font-size: 12px; }
 
   .loc-status { display: flex; align-items: center; gap: 10px; padding: 13px; background: rgba(26,46,26,0.5); border-radius: 10px; font-size: 12px; }
@@ -736,17 +736,20 @@ let filtroAtivo = 'todas';
 // Inicializar DB e migrar dados ao carregar
 initDB().then(() => {
   migrarFotosAntigas();
-  atualizarBadge();
-  capturarLocalizacao();
-  const d = new Date(); d.setDate(d.getDate()+7);
-  document.getElementById('dataRevisita').value = d.toISOString().slice(0,10);
+  init();
 }).catch(() => {
-  // Fallback se IndexedDB não disponível
+  init();
+});
+
+function init() {
   atualizarBadge();
   capturarLocalizacao();
   const d = new Date(); d.setDate(d.getDate()+7);
   document.getElementById('dataRevisita').value = d.toISOString().slice(0,10);
-});
+  // Limpar chave antiga do banner (formato antigo era '1')
+  const oldVal = localStorage.getItem('melipoMapa_bannerFechado');
+  if (oldVal === '1') localStorage.removeItem('melipoMapa_bannerFechado');
+}
 
 // Toggle campo "outro/outra"
 function toggleOutraOpcao(select, divId) {
@@ -869,6 +872,7 @@ function handleFoto(e) {
     URL.revokeObjectURL(url);
     document.getElementById('fotoPlaceholder').style.display='none';
     const area = document.getElementById('fotoArea');
+    area.classList.add('tem-foto');
     let el = area.querySelector('img');
     if (!el) { el=document.createElement('img'); area.appendChild(el); }
     el.src = fotoBase64;
