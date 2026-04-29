@@ -1,4 +1,4 @@
-const CACHE_NAME = 'melipomapa-v6';
+const CACHE_NAME = 'melipomapa-v7';
 const URLS_PARA_CACHE = [
   '/',
   '/index.html',

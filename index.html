@@ -512,6 +512,27 @@
   <div class="section-sub">DADOS E RELATÓRIOS</div>
   <div class="stats-grid" id="statsGrid"></div>
 
+  <!-- BACKUP E RESTAURAÇÃO -->
+  <div style="margin-bottom:6px">
+    <div class="section-sub" style="margin-bottom:10px">💾 BACKUP E RESTAURAÇÃO</div>
+    <div class="export-card" onclick="fazerBackup()" style="border-color:rgba(107,171,94,0.35);background:rgba(45,74,45,0.7)">
+      <div class="export-icon">💾</div>
+      <div>
+        <div class="export-title">Fazer Backup</div>
+        <div class="export-desc">Salva todas as iscas, fotos e histórico em um único arquivo. Guarde no Google Drive, WhatsApp ou e-mail para não perder nada.</div>
+      </div>
+    </div>
+    <div class="export-card" onclick="document.getElementById('inputRestaurar').click()" style="border-color:rgba(200,134,42,0.35);background:rgba(45,37,20,0.5)">
+      <div class="export-icon">📥</div>
+      <div>
+        <div class="export-title">Restaurar Backup</div>
+        <div class="export-desc">Selecione um arquivo de backup para recuperar suas iscas em qualquer celular. Ideal ao trocar de aparelho ou limpar o cache.</div>
+      </div>
+    </div>
+    <input type="file" id="inputRestaurar" accept=".melipomapa,.json" style="display:none" onchange="restaurarBackup(event)">
+  </div>
+
+  <div class="section-sub" style="margin-bottom:10px">📤 OUTROS FORMATOS</div>
   <div class="export-card" onclick="exportarCSV()">
     <div class="export-icon">📊</div>
     <div>
@@ -1450,6 +1471,67 @@ setTimeout(() => {
     document.getElementById('installBanner').classList.add('visible');
   }
 }, 3000);
+
+// ══════════════════════════════════
+// BACKUP E RESTAURAÇÃO
+// ══════════════════════════════════
+async function fazerBackup() {
+  if (!iscas.length) { toast('Nenhuma isca para fazer backup','var(--mel)'); return; }
+  toast('💾 Preparando backup com fotos...', 'var(--verde-folha)');
+  const iscasComFotos = [];
+  for (const isca of iscas) {
+    const ic = JSON.parse(JSON.stringify(isca));
+    const fotos = await carregarFotoDB(isca.id);
+    if (fotos) ic._fotosBackup = fotos;
+    if (isca.historico) {
+      for (let i = 0; i < isca.historico.length; i++) {
+        const h = isca.historico[i];
+        if (h.tipo === 'revisita') {
+          const fv = await carregarFotoDB(isca.id + '_v_' + h.data);
+          if (fv) ic.historico[i]._fotoBackup = fv[0];
+        }
+      }
+    }
+    iscasComFotos.push(ic);
+  }
+  const backup = { versao:'1.0', data:new Date().toISOString(), totalIscas:iscas.length, iscas:iscasComFotos };
+  const blob = new Blob([JSON.stringify(backup)], { type:'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `melipomapa_backup_${new Date().toISOString().slice(0,10)}.melipomapa`;
+  a.click();
+  URL.revokeObjectURL(url);
+  toast(`✅ Backup de ${iscas.length} isca${iscas.length>1?'s':''} salvo!`);
+}
+
+async function restaurarBackup(e) {
+  const file = e.target.files[0]; if (!file) return;
+  const reader = new FileReader();
+  reader.onload = async ev => {
+    try {
+      const backup = JSON.parse(ev.target.result);
+      if (!backup.iscas || !Array.isArray(backup.iscas)) { toast('❌ Arquivo inválido!','#e06060'); return; }
+      let novas=0, atualizadas=0;
+      for (const ib of backup.iscas) {
+        if (ib._fotosBackup) { await salvarFotoDB(ib.id, ib._fotosBackup); delete ib._fotosBackup; }
+        if (ib.historico) {
+          for (const h of ib.historico) {
+            if (h._fotoBackup) { await salvarFotoDB(ib.id+'_v_'+h.data, [h._fotoBackup]); delete h._fotoBackup; }
+          }
+        }
+        ib.foto=null; ib.fotos=[];
+        const idx = iscas.findIndex(i=>i.id===ib.id);
+        if (idx>=0) { iscas[idx]=ib; atualizadas++; } else { iscas.push(ib); novas++; }
+      }
+      salvarStorage(); atualizarBadge(); renderLista();
+      document.getElementById('inputRestaurar').value='';
+      toast(`✅ ${novas} nova${novas!==1?'s':''} + ${atualizadas} atualizada${atualizadas!==1?'s':''}!`);
+      setTimeout(()=>switchTab('lista'),1000);
+    } catch(err) { toast('❌ Erro ao restaurar backup!','#e06060'); }
+  };
+  reader.readAsText(file);
+}
 
 // ══ INICIALIZAÇÃO ══
 function init() {
