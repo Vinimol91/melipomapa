@@ -858,6 +858,8 @@ function switchTab(tab) {
   if (tab==='lista') renderLista();
   if (tab==='mapa') renderMapa();
   if (tab==='exportar') renderStats();
+  // Recaptura GPS automaticamente toda vez que abre aba Nova
+  if (tab==='nova') capturarLocalizacao();
 }
 
 // FOTO
@@ -932,6 +934,8 @@ async function salvarIsca() {
   const d2=new Date(); d2.setDate(d2.getDate()+7);
   document.getElementById('dataRevisita').value=d2.toISOString().slice(0,10);
   toast('🐝 Isca registrada com sucesso!');
+  // Já inicia captura do GPS para a próxima isca
+  capturarLocalizacao();
   setTimeout(()=>switchTab('lista'),600);
 }
 
